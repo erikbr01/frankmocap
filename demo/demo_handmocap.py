@@ -19,10 +19,47 @@ import renderer.image_utils as imu
 from renderer.viewer2D import ImShow
 import time
 
+import open3d
+
+
+class NonBlockVisualizer:
+    '''
+    Non-blocking visualizer for the hand point cloud.
+    '''
+    def __init__(self, point_size=10, background_color=[255, 255, 255]):
+        self.__visualizer = open3d.visualization.Visualizer()
+        self.__visualizer.create_window()
+        opt = self.__visualizer.get_render_option()
+        opt.background_color = np.asarray(background_color)
+        opt = self.__visualizer.get_render_option()
+        opt.point_size = point_size
+
+        self.__pcd_vis = open3d.geometry.PointCloud()
+        self.__initialized = False
+
+    def update_renderer(self, pcd, wait_time=0):
+        self.__pcd_vis.points = pcd.points
+        self.__pcd_vis.colors = pcd.colors
+
+        if not self.__initialized:
+            self.__initialized = True
+            self.__visualizer.add_geometry(self.__pcd_vis)
+        else:
+            self.__visualizer.update_geometry(self.__pcd_vis)
+        self.__visualizer.poll_events()
+        self.__visualizer.update_renderer()
+
+        if wait_time > 0:
+            time.sleep(wait_time)
+            
 
 def run_hand_mocap(args, bbox_detector, hand_mocap, visualizer):
     #Set up input data (images or webcam)
     input_type, input_data = demo_utils.setup_input(args)
+
+    ########## CUSTOM VISUALIZATION
+    pcd = open3d.geometry.PointCloud()
+    vis = NonBlockVisualizer()
  
     assert args.out_dir is not None, "Please specify output dir to store the results"
     cur_frame = args.start_frame
@@ -114,6 +151,17 @@ def run_hand_mocap(args, bbox_detector, hand_mocap, visualizer):
                 img_original_bgr, hand_bbox_list, add_margin=True)
         assert len(hand_bbox_list) == len(body_bbox_list)
         assert len(body_bbox_list) == len(pred_output_list)
+
+        ########### CUSTOM VISUALIZATION
+        joints = pred_output_list[0]['left_hand']['pred_joints_smpl']
+        pcd.points = open3d.utility.Vector3dVector(joints)
+        pcd.transform([[1, 0, 0, 0], [0, -1, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]])
+        # print(len(pcd.points))
+        # vis.update_geometry(pcd)
+        # vis.poll_events()
+        vis.update_renderer(pcd=pcd)
+
+
 
         # extract mesh for rendering (vertices in image space and faces) from pred_output_list
         pred_mesh_list = demo_utils.extract_mesh_from_output(pred_output_list)
