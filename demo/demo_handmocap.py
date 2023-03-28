@@ -51,7 +51,9 @@ class NonBlockVisualizer:
 
         if wait_time > 0:
             time.sleep(wait_time)
-            
+
+
+
 
 def run_hand_mocap(args, bbox_detector, hand_mocap, visualizer):
     #Set up input data (images or webcam)
@@ -59,6 +61,20 @@ def run_hand_mocap(args, bbox_detector, hand_mocap, visualizer):
 
     ########## CUSTOM VISUALIZATION
     pcd = open3d.geometry.PointCloud()
+    colors = np.zeros((21,3))
+    colors[0] = [0,255,255]
+  
+
+    colors[1:5] = [0,0,0]
+    colors[5:9] = [255,0,0]
+    colors[9:13] = [0,255,0]
+    colors[13:17] = [0,0,255]
+    colors[17:21] = [255,255,0]
+
+    pcd.colors = open3d.utility.Vector3dVector(colors)
+    
+
+
     vis = NonBlockVisualizer()
  
     assert args.out_dir is not None, "Please specify output dir to store the results"
@@ -153,12 +169,16 @@ def run_hand_mocap(args, bbox_detector, hand_mocap, visualizer):
         assert len(body_bbox_list) == len(pred_output_list)
 
         ########### CUSTOM VISUALIZATION
+        # MANO Ordering:
+        # [Wrist, TMCP, IMCP, MMCP, RMCP, PMCP, TPIP, TDIP, TTIP, IPIP, IDIP, ITIP, MPIP, MDIP, MTIP, RPIP, RDIP, RTIP, PPIP, PDIP, PTIP], 
+        # where ’T’, ’I’, ’M’, ’R’, ’P’ denote ’Thumb’, ’Index’, ’Middle’, ’Ring’, ’Pinky’ fingers. ’MCP’, ’PIP’, ’DIP’, ’TIP’ 
         joints = pred_output_list[0]['left_hand']['pred_joints_smpl']
         pcd.points = open3d.utility.Vector3dVector(joints)
         pcd.transform([[1, 0, 0, 0], [0, -1, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]])
         # print(len(pcd.points))
         # vis.update_geometry(pcd)
         # vis.poll_events()
+        # open3d.visualization.draw_geometries([pcd])
         vis.update_renderer(pcd=pcd)
 
 
